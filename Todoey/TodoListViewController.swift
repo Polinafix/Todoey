@@ -9,15 +9,15 @@
 import UIKit
 
 class TodoListViewController: UITableViewController {
-    
-    let itemArray = ["iOS practice","Nutrition practice","Go to the gym"]
+    //mutable array
+    var itemArray = ["iOS practice","Nutrition practice","Go to the gym"]
 
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
     }
     
-    //MARK - tableView DataSource methods
+    //MARK: - tableView DataSource methods
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return itemArray.count
@@ -29,7 +29,7 @@ class TodoListViewController: UITableViewController {
         return cell
     }
     
-     //MARK - tableView Delegate methods
+    //MARK: - tableView Delegate methods
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         print(itemArray[indexPath.row])
@@ -40,6 +40,36 @@ class TodoListViewController: UITableViewController {
         }
         tableView.deselectRow(at: indexPath, animated: true)
     }
+    
+    //MARK: - Add new items
+    
+    @IBAction func addButtonPresses(_ sender: UIBarButtonItem) {
+        //create a local variable
+        var textField = UITextField()
+        //create a new alert
+        let alert = UIAlertController(title: "Add new to-do item", message: "", preferredStyle: .alert)
+        let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
+            //once the user click the add button
+            if let myItem = textField.text {
+               // print(myItem)
+                self.itemArray.append(myItem)
+                self.tableView.reloadData()
+                
+            }
+            
+            
+        }
+        //add a text field inside the ui alert
+        alert.addTextField { (alertTextField) in
+            alertTextField.placeholder = "Create a new item"
+            //extending the scope
+            textField = alertTextField
+        }
+        alert.addAction(action)
+        present(alert, animated: true, completion: nil)
+    }
+    
+    
     
 
 
