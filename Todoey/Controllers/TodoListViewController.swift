@@ -7,19 +7,21 @@
 //
 
 import UIKit
+import CoreData
 
 class TodoListViewController: UITableViewController {
     
-    //1. Create a filepath to the document's folder:
-    //2. Create our own plist sub-directory
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+
+    //access the context from the appDelegate(obtain a reference to the context):
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     //mutable array
     var itemArray = [Item]()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-                
-        //load our items.plist > decoding
+        
+        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
+        //here we want to load up all of the to-do items from our persistent container
         loadItems()
             }
     
@@ -43,10 +45,13 @@ class TodoListViewController: UITableViewController {
     //MARK: - tableView Delegate methods
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        print(itemArray[indexPath.row])
-        
-        itemArray[indexPath.row].done = !itemArray[indexPath.row].done
-        //save the changes
+        //change the tick
+       // itemArray[indexPath.row].done = !itemArray[indexPath.row].done
+        ///1.remove data from our array
+        itemArray.remove(at: indexPath.row)
+        //2.remove data from our context
+        context.delete(itemArray[indexPath.row])
+        //save the changes to the permanent storage
         saveItems()
         tableView.deselectRow(at: indexPath, animated: true)
     }
@@ -61,9 +66,11 @@ class TodoListViewController: UITableViewController {
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
             //once the user click the add button
             if let myItem = textField.text {
-               // print(myItem)
-                let newItem = Item()
+                //create new object of type Item which NSManagedObject == row inside the table:
+                //specify the context where this item is going to exist > persistentContainer.viewContext
+                let newItem = Item(context: self.context)
                 newItem.title = myItem
+                newItem.done = false
                 self.itemArray.append(newItem)
                 self.saveItems()
             }
@@ -83,36 +90,54 @@ class TodoListViewController: UITableViewController {
     //MARK: - Model manipulation methods
     
     func saveItems() {
-        //3.create an encoder
-        let encoder = PropertyListEncoder()
-        //4.it will encode our itemArray into property list
+        //commit our temp context to the permanent storage inside the persistent container
+        //context.save()
+        
         do {
-            let data = try encoder.encode(itemArray)
-            //5.write our data to our data file path
-            try data.write(to: dataFilePath!)
+            try context.save()
         }catch{
-            print("Error encoding item array,\(error) ")
+            print("Error saving context \(error)")
         }
         self.tableView.reloadData()
     }
     
-    func loadItems() {
-        //1.tap into the data located in the documents
-        if let data = try? Data(contentsOf: dataFilePath!){
-           //2.create a decoder
-            let decoder = PropertyListDecoder()
-            //3.set the itemArray to the contents of plist file
-            do {
-                itemArray = try decoder.decode([Item].self, from: data)
-            }catch {
-                print("Error decoding item array,\(error) ")
-            }
+    //if we call this function and don't provide a value for the request, then we can have a default value
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
+        //first, our app needs to talk to the context
+        do {
+            try itemArray = context.fetch(request)//output for this method id going to be an array of items that is stored in the persistent container
+        }catch {
+            print("Error fetching data from the context \(error)")
         }
+        
+        tableView.reloadData()
+        
     }
     
-    
-    
 
-
+}
+//MARK: - Search bar functionality
+extension TodoListViewController: UISearchBarDelegate {
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        //In order to read from the context we always need to create a request and we have to declare its data type:
+        
+        let request:NSFetchRequest<Item> = Item.fetchRequest()
+    
+        //we need to specify what our filter is(query)
+        //for all the items in Items array look for the once where the title contains the enter text
+         //add query to our request
+        request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        /*NSPredicate is a foundation class that specifies how data should be fetched or filtered*/
+ 
+        //sort the data that we get from the DB
+        //add it to the request:
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        
+        //run our request and fetch the results
+        //will return only those that satisfy the rules that we specified for our request
+        loadItems(with: request)
+        
+    }
 }
 
